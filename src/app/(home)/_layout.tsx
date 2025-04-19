@@ -1,5 +1,4 @@
-import { Redirect, Slot, Stack } from "expo-router";
-import { useEffect } from "react";
+import { Redirect, Stack } from "expo-router";
 
 import ChatProvider from "../../providers/ChatProvider";
 import { useAuth } from "../../providers/AuthProvider";
