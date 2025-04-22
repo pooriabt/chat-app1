@@ -4,9 +4,9 @@ import ChatProvider from "../../providers/ChatProvider";
 import { useAuth } from "../../providers/AuthProvider";
 
 export default function HomeLayout() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
-  if (!user) {
+  if (!user || !session) {
     return <Redirect href="/(auth)/login" />;
   }
   return (

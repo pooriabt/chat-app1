@@ -2,13 +2,16 @@ import React, { useState } from "react";
 import { Alert, StyleSheet, View, AppState } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { Button, Input } from "@rneui/themed";
+import * as SecureStore from "expo-secure-store";
 
-// Tells Supabase Auth to continuously refresh the session automatically if
-// the app is in the foreground. When this is added, you will continue to receive
-// `onAuthStateChange` events with the `TOKEN_REFRESHED` or `SIGNED_OUT` event
-// if the user's session is terminated. This should only be registered once.
-AppState.addEventListener("change", (state) => {
-  if (state === "active") {
+import { router } from "expo-router";
+
+AppState.addEventListener("change", async (state) => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (state === "active" && session) {
     supabase.auth.startAutoRefresh();
   } else {
     supabase.auth.stopAutoRefresh();
@@ -22,31 +25,94 @@ export default function Auth() {
 
   async function signInWithEmail() {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const {
+      data: { session, user },
+      error,
+    } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
 
-    if (error) Alert.alert(error.message);
+    if (error) {
+      Alert.alert(error.message);
+      setLoading(false);
+      return;
+    }
+
     setLoading(false);
   }
 
   async function signUpWithEmail() {
     setLoading(true);
+
+    const allowedDomains = ["vvk.lt", "kolegija.lt", "gmail.com"];
+    const domain = email.split("@")[1];
+
+    if (!allowedDomains.includes(domain)) {
+      Alert.alert("Email domain not allowed. Use your school email.");
+      setLoading(false);
+      return;
+    }
+
+    // Step 1: Sign up the user
     const {
-      data: { session },
+      data: { session, user },
       error,
     } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
 
-    if (error) Alert.alert(error.message);
-    if (!session)
-      Alert.alert("Please check your inbox for email verification!");
-    setLoading(false);
-  }
+    if (error) {
+      Alert.alert(error.message);
+      setLoading(false);
+      return;
+    }
 
+    if (!user) {
+      Alert.alert("Something went wrong. Try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Generate a 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Step 3: Save code to DB
+    await supabase.from("email_verification_codes").upsert({
+      user_id: user.id,
+      code,
+    });
+
+    // Step 4: Send code via Edge Function (FIXED URL & HEADERS)
+    await fetch(
+      "https://btezxwxovdtmoidhvemy.supabase.co/functions/v1/send-code",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token || ""}`,
+        },
+        body: JSON.stringify({ email: user.email, code }),
+      }
+    );
+
+    // Step 5: Tell user to check email
+    Alert.alert(
+      "Almost done!",
+      "Please check your email for a 6-digit verification code."
+    );
+
+    // Step 6: Sign out temporarily (until verification complete)
+    await supabase.auth.signOut();
+
+    setLoading(false);
+
+    await SecureStore.setItemAsync("user_email_for_verification", email);
+
+    // Navigate to VerifyCode screen or store email temporarily
+    router.push("/verify-code");
+  }
   return (
     <View style={styles.container}>
       <View style={[styles.verticallySpaced, styles.mt20]}>
