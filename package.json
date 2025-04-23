@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "11.4.1",
     "@react-navigation/native": "^7.1.6",
@@ -19,6 +20,7 @@
     "expo-av": "~15.0.2",
     "expo-clipboard": "~7.0.1",
     "expo-constants": "~17.0.8",
+    "expo-dev-client": "~5.0.20",
     "expo-image-manipulator": "~13.0.6",
     "expo-image-picker": "~16.0.6",
     "expo-linking": "~7.0.5",
@@ -35,7 +37,8 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
     "react-native-webview": "13.12.5",
-    "stream-chat-expo": "^6.7.2",
+    "stream-chat-expo": "^6.7.3",
+    "stream-chat-react-native": "^6.7.3",
     "tree": "^0.1.3"
   },
   "devDependencies": {
