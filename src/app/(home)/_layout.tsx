@@ -1,19 +1,29 @@
-import { Redirect, Stack } from "expo-router";
-
-import ChatProvider from "../../providers/ChatProvider";
-import { useAuth } from "../../providers/AuthProvider";
+import { Stack } from "expo-router";
 
 export default function HomeLayout() {
-  const { user, session } = useAuth();
-
-  if (!user || !session) {
-    return <Redirect href="/(auth)/login" />;
-  }
   return (
-    <ChatProvider>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </ChatProvider>
+    <Stack>
+      <Stack.Screen
+        name="(tabs)"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="users"
+        options={{
+          title: "Users",
+          presentation: "modal", // Add this
+          animation: "fade",
+        }}
+      />
+      <Stack.Screen
+        name="channel"
+        options={{
+          headerShown: false,
+          animation: "fade",
+        }}
+      />
+    </Stack>
   );
 }

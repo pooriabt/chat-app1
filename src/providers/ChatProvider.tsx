@@ -1,56 +1,61 @@
 import { PropsWithChildren, useEffect, useState } from "react";
-import { ActivityIndicator, View, Text } from "react-native";
-import { StreamChat } from "stream-chat";
+import { ActivityIndicator, View } from "react-native";
 import { Chat, OverlayProvider } from "stream-chat-expo";
 import { useAuth } from "./AuthProvider";
 
 export default function ChatProvider({ children }: PropsWithChildren) {
-  const [isReady, setIsReady] = useState(false);
-  const { profile } = useAuth();
+  const { user, profile, chatClient, isInitialized } = useAuth();
+  const [isChatReady, setIsChatReady] = useState(false);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!isInitialized || !user || !profile || !chatClient) {
+      setIsChatReady(false);
+      return;
+    }
 
-    const client = StreamChat.getInstance(
-      process.env.EXPO_PUBLIC_STREAM_API_KEY
-    );
+    const connectUser = async () => {
+      try {
+        // Force disconnect first if needed
+        if (chatClient.userID) {
+          await chatClient.disconnectUser();
+        }
 
-    const connect = async () => {
-      await client.connectUser(
-        {
-          id: profile.id,
-          name: profile.full_name || profile.email || "User",
-          image: profile.avatar_url,
-        },
-        client.devToken(profile.id)
-      );
-      setIsReady(true);
+        await chatClient.connectUser(
+          {
+            id: profile.id,
+            name: profile.full_name || profile.email || "User",
+            image: profile.avatar_url,
+          },
+          chatClient.devToken(profile.id)
+        );
+        setIsChatReady(true);
+      } catch (error) {
+        console.error("Chat connection error:", error);
+        setIsChatReady(false);
+        // Add retry logic if needed
+      }
     };
 
-    connect();
+    connectUser();
 
     return () => {
-      client.disconnectUser();
-      setIsReady(false);
+      if (isChatReady) {
+        chatClient.disconnectUser();
+      }
     };
-  }, [profile?.id]);
+  }, [isInitialized, user?.id, profile?.id]);
 
-  if (!isReady) {
+  if (!isInitialized || !isChatReady) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center" }}>
         <ActivityIndicator size="large" />
-        <Text>Loading chat...</Text>
       </View>
     );
   }
 
   return (
     <OverlayProvider>
-      <Chat
-        client={StreamChat.getInstance(process.env.EXPO_PUBLIC_STREAM_API_KEY)}
-      >
-        {children}
-      </Chat>
+      <Chat client={chatClient}>{children}</Chat>
     </OverlayProvider>
   );
 }
