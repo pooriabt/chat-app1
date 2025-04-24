@@ -3,7 +3,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AuthProvider from "../providers/AuthProvider";
 import ChatProvider from "../providers/ChatProvider";
 import { useAuth } from "../providers/AuthProvider";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, View, Text, SafeAreaView } from "react-native";
 import { Redirect } from "expo-router";
 
 export default function RootLayout() {
@@ -24,6 +24,7 @@ function AuthGatekeeper() {
   if (!isInitialized) {
     return (
       <View style={{ flex: 1, justifyContent: "center" }}>
+        {/* <Text>slmS</Text> */}
         <ActivityIndicator size="large" />
       </View>
     );
@@ -31,6 +32,7 @@ function AuthGatekeeper() {
 
   return (
     <>
+      <Text style={{ color: "#212121" }}>test</Text>
       {!user ? (
         // Show auth stack
         <Stack screenOptions={{ headerShown: false }}>

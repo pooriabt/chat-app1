@@ -17,6 +17,8 @@ export default function MainTabScreen() {
 
   // Add auth check and loading state
   if (isLoading) {
+    console.log({ isLoading });
+
     return (
       <View style={{ flex: 1, justifyContent: "center" }}>
         <ActivityIndicator size="large" />

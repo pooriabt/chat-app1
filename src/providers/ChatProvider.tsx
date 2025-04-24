@@ -9,7 +9,11 @@ export default function ChatProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!isInitialized || !user || !profile || !chatClient) {
-      setIsChatReady(false);
+      // console.log({ isInitialized, user, profile });
+
+      setIsChatReady(true);
+      // console.log("here");
+
       return;
     }
 
