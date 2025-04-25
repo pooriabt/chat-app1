@@ -4,8 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { Button, Input } from "@rneui/themed";
 import * as SecureStore from "expo-secure-store";
 
-import { Redirect, router } from "expo-router";
-import { useAuth } from "../../providers/AuthProvider";
+import { router } from "expo-router";
 
 AppState.addEventListener("change", async (state) => {
   const {
@@ -20,50 +19,32 @@ AppState.addEventListener("change", async (state) => {
 });
 
 export default function Auth() {
-  const { user } = useAuth();
-
-  // Immediate redirect if already logged in
-  if (user) {
-    return <Redirect href="/(home)/(tabs)" />;
-  }
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function signInWithEmail() {
     setLoading(true);
-    try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
+    const {
+      data: { session, user },
+      error,
+    } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
 
-      if (error) throw error;
-
-      // Force session refresh
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      console.log("Current session after login:", currentSession);
-
-      if (currentSession?.user) {
-        router.replace("/(home)/(tabs)");
-      } else {
-        throw new Error("Session not established");
-      }
-    } catch (error) {
+    if (error) {
       Alert.alert(error.message);
-    } finally {
       setLoading(false);
+      return;
     }
+
+    setLoading(false);
   }
 
   async function signUpWithEmail() {
     setLoading(true);
+
     const allowedDomains = ["vvk.lt", "kolegija.lt", "gmail.com"];
     const domain = email.split("@")[1];
 
@@ -73,6 +54,7 @@ export default function Auth() {
       return;
     }
 
+    // Step 1: Sign up the user
     const {
       data: { session, user },
       error,
@@ -93,40 +75,47 @@ export default function Auth() {
       return;
     }
 
-    // Generate and store verification code
+    // Step 2: Generate a 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Step 3: Save code to DB
     await supabase.from("email_verification_codes").upsert({
       user_id: user.id,
       code,
     });
 
-    // Send verification email
+    // Step 4: Send code via Edge Function (FIXED URL & HEADERS)
     await fetch(
       "https://btezxwxovdtmoidhvemy.supabase.co/functions/v1/send-code",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token || ""}`,
+          Authorization: `Bearer ${
+            (
+              await supabase.auth.getSession()
+            ).data.session?.access_token
+          }`,
         },
         body: JSON.stringify({ email: user.email, code }),
       }
     );
 
+    // Step 5: Tell user to check email
     Alert.alert(
       "Almost done!",
       "Please check your email for a 6-digit verification code."
     );
 
-    // Sign out and navigate to verification
+    // Step 6: Sign out temporarily (until verification complete)
     await supabase.auth.signOut();
-    await SecureStore.setItemAsync("user_email_for_verification", email);
-
-    // Wait briefly before navigation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    router.replace("/(auth)/verify-code");
 
     setLoading(false);
+
+    await SecureStore.setItemAsync("user_email_for_verification", email);
+
+    // Navigate to VerifyCode screen or store email temporarily
+    router.push("/verify-code");
   }
   return (
     <View style={styles.container}>

@@ -9,143 +9,97 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { StreamChat } from "stream-chat";
 
-type Profile = {
-  id: string;
-  full_name?: string;
-  email?: string;
-  avatar_url?: string;
-};
-
 type AuthContext = {
   session: Session | null;
   user: User | null;
-  profile: Profile | null;
-  isLoading: boolean;
-  isInitialized: boolean;
-  chatClient: StreamChat | null;
+  profile: any;
 };
+
+const chatClient = StreamChat.getInstance("26ekgfktnc6t");
 
 const AuthContext = createContext<AuthContext>({
   session: null,
   user: null,
   profile: null,
-  isLoading: true,
-  isInitialized: false,
-  chatClient: null,
 });
 
 export default function AuthProvider({ children }: PropsWithChildren) {
-  const [state, setState] = useState<Omit<AuthContext, "chatClient">>({
-    session: null,
-    user: null,
-    profile: null,
-    isLoading: true,
-    isInitialized: false,
-  });
-  const [chatClient, setChatClient] = useState<StreamChat | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState();
 
   useEffect(() => {
-    const client = StreamChat.getInstance(
-      process.env.EXPO_PUBLIC_STREAM_API_KEY || ""
-    );
-    setChatClient(client);
-
-    const getSession = async () => {
-      setState((prev) => ({ ...prev, isLoading: true }));
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.user?.email_confirmed_at) {
-          setState((prev) => ({ ...prev, session, user: session.user }));
-        }
-      } catch (error) {
-        console.error("Session error:", error);
-      } finally {
-        setState((prev) => ({
-          ...prev,
-          isInitialized: true,
-          user: null,
-          session: null,
-          profile: null,
-          isLoading: false,
-        }));
-      }
-    };
-
-    getSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setState((prev) => ({ ...prev, isLoading: true }));
-      try {
-        if (session?.user?.email_confirmed_at) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", session.user.id)
-            .single();
-
-          setState({
-            session,
-            user: session.user,
-            profile: profile || null,
-            isLoading: false,
-            isInitialized: true,
-          });
-        } else {
-          setState({
-            session: null,
-            user: null,
-            profile: null,
-            isLoading: false,
-            isInitialized: true,
-          });
-        }
-      } catch (error) {
-        console.error("Auth state change error:", error);
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          isInitialized: true,
-        }));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email_confirmed_at) {
+        setSession(session);
+      } else {
+        setSession(null); // Prevent partial session
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-      client.disconnectUser();
-    };
+    supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email_confirmed_at) {
+        setSession(session);
+      } else {
+        setSession(null);
+      }
+    });
   }, []);
 
   useEffect(() => {
-    if (!state.user) return;
+    if (session?.user?.email_confirmed_at) {
+      const connectStream = async () => {
+        const chatClient = StreamChat.getInstance("26ekgfktnc6t");
 
-    const getProfile = async () => {
-      setState((prev) => ({ ...prev, isLoading: true }));
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", state.user.id)
-          .single();
+        const response = await fetch(
+          "https://btezxwxovdtmoidhvemy.supabase.co/functions/v1/stream-token",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ user_id: session.user.id }),
+          }
+        );
 
-        if (!error) {
-          setState((prev) => ({ ...prev, profile: data }));
-        }
-      } catch (error) {
-        console.error("Profile error:", error);
-      } finally {
-        setState((prev) => ({ ...prev, isLoading: false }));
-      }
+        const result = await response.json();
+        console.log("Stream token:", result);
+
+        await chatClient.connectUser(
+          {
+            id: session.user.id,
+            name: session.user.email,
+          },
+          result.token
+        );
+
+        console.log("Stream Chat connected in AuthProvider");
+      };
+
+      connectStream();
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (!session?.user) {
+      setProfile(null);
+      return;
+    }
+    const fetchProfile = async () => {
+      let { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+      setProfile(data);
     };
-
-    getProfile();
-  }, [state.user]);
+    fetchProfile();
+  }, [session?.user]);
 
   return (
-    <AuthContext.Provider value={{ ...state, chatClient }}>
+    <AuthContext.Provider
+      value={{ session, user: session?.user ?? null, profile }}
+    >
       {children}
     </AuthContext.Provider>
   );

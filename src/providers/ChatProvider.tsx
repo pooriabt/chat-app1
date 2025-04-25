@@ -1,65 +1,56 @@
 import { PropsWithChildren, useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator } from "react-native";
+import { StreamChat } from "stream-chat";
+
 import { Chat, OverlayProvider } from "stream-chat-expo";
 import { useAuth } from "./AuthProvider";
+import { supabase } from "../lib/supabase";
 
+const client = StreamChat.getInstance(process.env.EXPO_PUBLIC_STREAM_API_KEY);
 export default function ChatProvider({ children }: PropsWithChildren) {
-  const { user, profile, chatClient, isInitialized } = useAuth();
-  const [isChatReady, setIsChatReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const { profile } = useAuth();
 
   useEffect(() => {
-    if (!isInitialized || !user || !profile || !chatClient) {
-      // console.log({ isInitialized, user, profile });
-
-      setIsChatReady(true);
-      // console.log("here");
-
+    if (!profile) {
       return;
     }
+    const connect = async () => {
+      await client.connectUser(
+        {
+          id: profile.id,
+          name: profile.full_name,
+          image: supabase.storage
+            .from("avatars")
+            .getPublicUrl(profile.avatar_url).data.publicUrl,
+        },
+        client.devToken(profile.id)
+      );
 
-    const connectUser = async () => {
-      try {
-        // Force disconnect first if needed
-        if (chatClient.userID) {
-          await chatClient.disconnectUser();
-        }
+      setIsReady(true);
 
-        await chatClient.connectUser(
-          {
-            id: profile.id,
-            name: profile.full_name || profile.email || "User",
-            image: profile.avatar_url,
-          },
-          chatClient.devToken(profile.id)
-        );
-        setIsChatReady(true);
-      } catch (error) {
-        console.error("Chat connection error:", error);
-        setIsChatReady(false);
-        // Add retry logic if needed
-      }
+      // const channel = client.channel("messaging", "the_park", {
+      //   name: "The Park",
+      // });
+
+      // await channel.watch();
     };
 
-    connectUser();
+    connect();
 
     return () => {
-      if (isChatReady) {
-        chatClient.disconnectUser();
-      }
+      client.disconnectUser();
+      setIsReady(false);
     };
-  }, [isInitialized, user?.id, profile?.id]);
+  }, [profile?.id]);
 
-  if (!isInitialized || !isChatReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+  if (!isReady) {
+    return <ActivityIndicator />;
   }
 
   return (
     <OverlayProvider>
-      <Chat client={chatClient}>{children}</Chat>
+      <Chat client={client}>{children}</Chat>/
     </OverlayProvider>
   );
 }
