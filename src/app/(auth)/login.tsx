@@ -25,20 +25,69 @@ export default function Auth() {
 
   async function signInWithEmail() {
     setLoading(true);
-    const {
-      data: { session, user },
-      error,
-    } = await supabase.auth.signInWithPassword({
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
 
-    if (error) {
-      Alert.alert(error.message);
+    if (signInError) {
+      Alert.alert(signInError.message);
       setLoading(false);
       return;
     }
 
+    // 🔥 Re-fetch session fully
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+
+    if (sessionError || !sessionData.session) {
+      Alert.alert("Failed to refresh session. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    const { user } = sessionData.session;
+
+    if (!user?.email_confirmed_at) {
+      await supabase.auth.signOut();
+      Alert.alert(
+        "Email not verified",
+        "Please check your inbox and confirm your email before logging in."
+      );
+      setLoading(false);
+      return;
+    }
+
+    // 🔥🔥 Now check if 6-digit code verification is done
+    const { data: codeData, error: codeError } = await supabase
+      .from("email_verification_codes")
+      .select("*")
+      .eq("user_email", user.email)
+      .maybeSingle();
+
+    if (codeError) {
+      console.error("Verification code fetch error:", codeError.message);
+      await supabase.auth.signOut();
+      Alert.alert("Verification check failed. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    if (codeData) {
+      // 🔥 User still needs to enter code!
+      await supabase.auth.signOut();
+      Alert.alert(
+        "Complete Verification",
+        "Please enter the 6-digit code sent to your email first."
+      );
+      router.replace("/verify-code");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ No verification code found = user is fully verified
+    console.log("Login success, user fully verified!");
     setLoading(false);
   }
 
@@ -81,6 +130,7 @@ export default function Auth() {
     // Step 3: Save code to DB
     await supabase.from("email_verification_codes").upsert({
       user_id: user.id,
+      user_email: user.email,
       code,
     });
 

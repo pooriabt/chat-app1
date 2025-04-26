@@ -8,7 +8,6 @@ export default function VerifyCodeScreen() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
 
-  // Step 1: Load email on screen mount
   useEffect(() => {
     const loadEmail = async () => {
       const savedEmail = await SecureStore.getItemAsync(
@@ -21,45 +20,48 @@ export default function VerifyCodeScreen() {
         router.replace("/(auth)/login");
       }
     };
-
     loadEmail();
   }, []);
 
-  // Step 2: Handle verification
   async function verifyCode() {
+    if (!email || !code) {
+      Alert.alert("Error", "Missing email or code.");
+      return;
+    }
+
     const { data, error } = await supabase
       .from("email_verification_codes")
       .select("*")
       .eq("code", code)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
+      Alert.alert("Invalid code", "Please enter the correct 6-digit code.");
+      return;
+    }
+
+    if (data.user_email !== email) {
       Alert.alert(
-        "Invalid code",
-        "Please enter the correct verification code."
+        "Wrong email",
+        "This code does not match your email address."
       );
       return;
     }
 
-    // Optional: Delete code from DB
     await supabase
       .from("email_verification_codes")
       .delete()
       .eq("user_id", data.user_id);
-
-    // Optional: Clear stored email
     await SecureStore.deleteItemAsync("user_email_for_verification");
 
-    Alert.alert(
-      "Verified!",
-      "Your email has been verified. Please log in now."
-    );
+    Alert.alert("Verified!", "You can now login.");
     router.replace("/(auth)/login");
   }
 
   return (
     <View style={{ padding: 20 }}>
       <Text>Enter the 6-digit code sent to your email:</Text>
+
       <TextInput
         placeholder="Enter code"
         value={code}
@@ -67,7 +69,16 @@ export default function VerifyCodeScreen() {
         keyboardType="number-pad"
         style={{ borderWidth: 1, padding: 10, marginVertical: 10 }}
       />
+
       <Button title="Verify Code" onPress={verifyCode} />
+
+      <View style={{ marginTop: 0 }}>
+        <Button
+          title="Back to Login"
+          color="gray"
+          onPress={() => router.replace("/(auth)/login")}
+        />
+      </View>
     </View>
   );
 }
