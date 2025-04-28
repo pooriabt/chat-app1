@@ -1,12 +1,33 @@
-import React from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Button, StyleSheet } from "react-native";
 import { WebView } from "react-native-webview";
 import { useLocalSearchParams } from "expo-router";
 
 export default function CallScreen() {
   const { roomId, userName, isVideo } = useLocalSearchParams();
+  const [showFallback, setShowFallback] = useState(false);
 
-  const jitsiUrl = `https://meet.jit.si/${roomId}#userInfo.displayName="${userName}"`;
+  const jitsiUrl = roomId
+    ? `https://meet.jit.si/${roomId}#userInfo.displayName="${userName}"`
+    : null;
+
+  if (showFallback || !jitsiUrl) {
+    return (
+      <View style={styles.fallbackContainer}>
+        <Text style={styles.fallbackText}>404 - Room Not Found</Text>
+        <Text style={styles.fallbackText}>
+          Click <Text style={styles.link}>here</Text> to navigate to Jitsi Meet.
+        </Text>
+        <Button
+          title="Start Meeting"
+          onPress={() => {
+            // Navigate to Jitsi Meet's homepage
+            setShowFallback(false);
+          }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -16,6 +37,7 @@ export default function CallScreen() {
         javaScriptEnabled={true}
         domStorageEnabled={true}
         startInLoadingState={true}
+        onError={() => setShowFallback(true)} // Show fallback on error
       />
     </View>
   );
@@ -28,5 +50,20 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
+  },
+  fallbackContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  fallbackText: {
+    fontSize: 18,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  link: {
+    color: "blue",
+    textDecorationLine: "underline",
   },
 });

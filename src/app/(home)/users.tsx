@@ -15,16 +15,22 @@ export default function UsersScreen() {
   const [users, setUsers] = useState([]);
   const { user } = useAuth(); // Get the current authenticated user
 
-  // Fetch users from Supabase
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const { data: profiles, error } = await supabase
           .from("profiles") // Replace "profiles" with your actual table name
-          .select("*")
+          .select("id, full_name, username") // Fetch relevant fields
           .neq("id", user.id); // Exclude the current user
         if (error) throw error;
-        setUsers(profiles);
+
+        // Use `full_name` or `username` if available
+        const updatedProfiles = profiles.map((profile) => ({
+          ...profile,
+          displayName: profile.full_name || profile.username || "Unnamed User",
+        }));
+
+        setUsers(updatedProfiles);
       } catch (error) {
         console.error("Error fetching users:", error);
       }
@@ -47,11 +53,12 @@ export default function UsersScreen() {
 
   const renderUser = ({ item }) => (
     <View style={styles.userContainer}>
-      <Text style={styles.userName}>{item.name}</Text>
+      {/* Display the user's full name or username */}
+      <Text style={styles.userName}>{item.displayName}</Text>
       <View style={styles.buttonContainer}>
         {/* Video Call Button */}
         <TouchableOpacity
-          onPress={() => handleCallPress(item.id, item.name, true)}
+          onPress={() => handleCallPress(item.id, item.displayName, true)}
         >
           <Image
             source={require("../../../assets/video-recorder.png")} // Replace with your video call icon
@@ -60,7 +67,7 @@ export default function UsersScreen() {
         </TouchableOpacity>
         {/* Voice Call Button */}
         <TouchableOpacity
-          onPress={() => handleCallPress(item.id, item.name, false)}
+          onPress={() => handleCallPress(item.id, item.displayName, false)}
         >
           <Image
             source={require("../../../assets/telecommunication.png")} // Replace with your voice call icon
@@ -70,7 +77,6 @@ export default function UsersScreen() {
       </View>
     </View>
   );
-
   return (
     <View style={styles.container}>
       <FlatList
