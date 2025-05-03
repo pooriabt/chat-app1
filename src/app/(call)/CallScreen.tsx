@@ -7,9 +7,18 @@ export default function CallScreen() {
   const { roomId, userName, isVideo } = useLocalSearchParams();
   const [showFallback, setShowFallback] = useState(false);
 
+  // Fallback for invalid userName
+  const displayName = Array.isArray(userName)
+    ? userName.join(", ")
+    : userName || "Guest";
+
   const jitsiUrl = roomId
-    ? `https://meet.jit.si/${roomId}#userInfo.displayName="${userName}"`
+    ? `https://meet.jit.si/${roomId}?config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=${!isVideo}&interfaceConfig.DISABLE_JOIN_LEAVE_NOTIFICATIONS=true&userInfo.displayName=${encodeURIComponent(
+        displayName
+      )}`
     : null;
+
+  console.log("Constructed Jitsi URL:", jitsiUrl);
 
   if (showFallback || !jitsiUrl) {
     return (
@@ -21,7 +30,6 @@ export default function CallScreen() {
         <Button
           title="Start Meeting"
           onPress={() => {
-            // Navigate to Jitsi Meet's homepage
             setShowFallback(false);
           }}
         />

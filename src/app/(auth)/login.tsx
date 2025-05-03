@@ -2,9 +2,6 @@ import React, { useState } from "react";
 import { Alert, StyleSheet, View, AppState } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { Button, Input } from "@rneui/themed";
-import * as SecureStore from "expo-secure-store";
-
-import { router } from "expo-router";
 
 AppState.addEventListener("change", async (state) => {
   const {
@@ -53,38 +50,47 @@ export default function Auth() {
       await supabase.auth.signOut();
       Alert.alert(
         "Email not verified",
-        "Please check your inbox and confirm your email before logging in."
+        "Please confirm your email before logging in."
       );
-      setLoading(false);
       return;
     }
 
-    // 🔥🔥 Now check if 6-digit code verification is done
-    const { data: codeData, error: codeError } = await supabase
-      .from("email_verification_codes")
-      .select("*")
-      .eq("user_email", user.email)
-      .maybeSingle();
+    // if (!user?.email_confirmed_at) {
+    //   await supabase.auth.signOut();
+    //   Alert.alert(
+    //     "Email not verified",
+    //     "Please check your inbox and confirm your email before logging in."
+    //   );
+    //   setLoading(false);
+    //   return;
+    // }
 
-    if (codeError) {
-      console.error("Verification code fetch error:", codeError.message);
-      await supabase.auth.signOut();
-      Alert.alert("Verification check failed. Please try again.");
-      setLoading(false);
-      return;
-    }
+    // // 🔥🔥 Now check if 6-digit code verification is done
+    // const { data: codeData, error: codeError } = await supabase
+    //   .from("email_verification_codes")
+    //   .select("*")
+    //   .eq("user_email", user.email)
+    //   .maybeSingle();
 
-    if (codeData) {
-      // 🔥 User still needs to enter code!
-      await supabase.auth.signOut();
-      Alert.alert(
-        "Complete Verification",
-        "Please enter the 6-digit code sent to your email first."
-      );
-      router.replace("/verify-code");
-      setLoading(false);
-      return;
-    }
+    // if (codeError) {
+    //   console.error("Verification code fetch error:", codeError.message);
+    //   await supabase.auth.signOut();
+    //   Alert.alert("Verification check failed. Please try again.");
+    //   setLoading(false);
+    //   return;
+    // }
+
+    // if (codeData) {
+    //   // 🔥 User still needs to enter code!
+    //   await supabase.auth.signOut();
+    //   Alert.alert(
+    //     "Complete Verification",
+    //     "Please enter the 6-digit code sent to your email first."
+    //   );
+    //   router.replace("/verify-code");
+    //   setLoading(false);
+    //   return;
+    // }
 
     // ✅ No verification code found = user is fully verified
     console.log("Login success, user fully verified!");
@@ -103,70 +109,26 @@ export default function Auth() {
       return;
     }
 
-    // Step 1: Sign up the user
-    const {
-      data: { session, user },
-      error,
-    } = await supabase.auth.signUp({
-      email: email,
-      password: password,
+    // ✅ Only ONE signUp call
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
     });
 
-    if (error) {
-      Alert.alert(error.message);
+    if (signUpError) {
+      Alert.alert("Signup error", signUpError.message);
       setLoading(false);
       return;
     }
 
-    if (!user) {
-      Alert.alert("Something went wrong. Try again.");
-      setLoading(false);
-      return;
-    }
-
-    // Step 2: Generate a 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Step 3: Save code to DB
-    await supabase.from("email_verification_codes").upsert({
-      user_id: user.id,
-      user_email: user.email,
-      code,
-    });
-
-    // Step 4: Send code via Edge Function (FIXED URL & HEADERS)
-    await fetch(
-      "https://btezxwxovdtmoidhvemy.supabase.co/functions/v1/send-code",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${
-            (
-              await supabase.auth.getSession()
-            ).data.session?.access_token
-          }`,
-        },
-        body: JSON.stringify({ email: user.email, code }),
-      }
-    );
-
-    // Step 5: Tell user to check email
     Alert.alert(
-      "Almost done!",
-      "Please check your email for a 6-digit verification code."
+      "Check your inbox",
+      "We sent a confirmation link to your email."
     );
-
-    // Step 6: Sign out temporarily (until verification complete)
-    await supabase.auth.signOut();
 
     setLoading(false);
-
-    await SecureStore.setItemAsync("user_email_for_verification", email);
-
-    // Navigate to VerifyCode screen or store email temporarily
-    router.push("/verify-code");
   }
+
   return (
     <View style={styles.container}>
       <View style={[styles.verticallySpaced, styles.mt20]}>
