@@ -43,8 +43,7 @@
     "react-native-svg": "15.11.2",
     "react-native-webview": "13.13.5",
     "stream-chat-expo": "^6.7.2",
-    "tree": "^0.1.3",
-    "undefined": "\\"
+    "tree": "^0.1.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
