@@ -1,34 +1,34 @@
 {
   "expo": {
-    "name": "chat-app",
-    "slug": "chat-app",
-    "scheme": "myChat-app",
-    "sdkVersion": "53.0.0",
+    "name": "Telegram",
+    "slug": "Telegram",
+    "scheme": "myTelegram",
     "version": "1.0.0",
-    "developmentClient": {},
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bitcode": false,
-      "bundleIdentifier": "com.anonymous.chatapp",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "bundleIdentifier": "com.vadinsavin.Telegram",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "googleServicesFile": "./google-services.json",
       "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_ADMIN",
@@ -40,35 +40,30 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.WAKE_LOCK"
       ],
-      "package": "com.anonymous.chatapp"
+      "package": "com.vadinsavin.Telegram"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store",
       "expo-router",
       [
         "expo-build-properties",
         {
           "android": {
             "minSdkVersion": 24,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 33,
             "extraMavenRepos": [
-              "$rootDir/../../../node_modules/@notifee/react-native/android/libs"
+              "../../node_modules/@notifee/react-native/android/libs"
             ]
+          },
+          "ios": {
+            "useFrameworks": "static"
           }
         }
-      ],
-      ["@stream-io/video-react-native-sdk"]
-    ],
-    "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-        "projectId": "3d41f908-1907-42b6-a817-00223955422f"
-      }
-    },
-    "owner": "pooriabt"
+      ]
+
+    ]
   }
 }
